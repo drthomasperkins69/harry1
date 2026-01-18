@@ -9,8 +9,16 @@ let gameState = 'start'; // 'start', 'playing', 'gameOver'
 let score = 0;
 let highScore = localStorage.getItem('flabbyBirdHighScore') || 0;
 
+// Delta time for consistent speed across browsers
+let lastTime = performance.now();
+const TARGET_FPS = 60;
+const TARGET_FRAME_TIME = 1000 / TARGET_FPS; // ~16.67ms per frame
+
 // Chonkiness level (0-100) - affects size AND weight
 let chonkiness = 50; // Default middle value
+
+// Speed multiplier (0.5 to 2.0) - controlled by slider
+let gameSpeed = 1.0;
 
 // Base physics (normal, not heavy)
 const BASE_GRAVITY = 0.35;
@@ -67,24 +75,27 @@ const bird = {
         this.flapFrame = 10;    // Flap animation frames
     },
 
-    update() {
-        // Apply heavy gravity
-        this.velocity += this.gravity;
+    update(dt) {
+        // dt is the delta time multiplier (1.0 = normal frame)
+        const timeScale = dt * gameSpeed;
+
+        // Apply heavy gravity (scaled by delta time)
+        this.velocity += this.gravity * timeScale;
 
         // Terminal velocity - even chonky birds have limits
         if (this.velocity > 15) this.velocity = 15;
 
-        this.y += this.velocity;
+        this.y += this.velocity * timeScale;
 
         // Wobble effect - the chonk jiggles!
-        this.wobble += this.wobbleSpeed;
-        this.wobbleSpeed *= 0.95; // Dampen wobble
+        this.wobble += this.wobbleSpeed * timeScale;
+        this.wobbleSpeed *= Math.pow(0.95, timeScale); // Dampen wobble
 
         // Rotation based on velocity (tilts more dramatically because heavy)
         this.rotation = Math.min(Math.max(this.velocity * 4, -30), 90);
 
         // Decrease flap frame
-        if (this.flapFrame > 0) this.flapFrame--;
+        if (this.flapFrame > 0) this.flapFrame -= timeScale;
 
         // Boundaries
         if (this.y < 0) {
@@ -280,15 +291,17 @@ function spawnPipe() {
     });
 }
 
-function updatePipes() {
-    pipeSpawnTimer++;
+function updatePipes(dt) {
+    const timeScale = dt * gameSpeed;
+
+    pipeSpawnTimer += timeScale;
     if (pipeSpawnTimer >= pipeSpawnInterval) {
         spawnPipe();
         pipeSpawnTimer = 0;
     }
 
     for (let i = pipes.length - 1; i >= 0; i--) {
-        pipes[i].x -= pipeSpeed;
+        pipes[i].x -= pipeSpeed * timeScale;
 
         // Score when passing pipe
         if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
@@ -361,7 +374,9 @@ function checkCollision() {
     return false;
 }
 
-function drawBackground() {
+function drawBackground(dt) {
+    const timeScale = dt * gameSpeed;
+
     // Sky gradient
     const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     skyGradient.addColorStop(0, '#87CEEB');
@@ -374,7 +389,7 @@ function drawBackground() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     clouds.forEach(cloud => {
         drawCloud(cloud.x, cloud.y, cloud.size);
-        cloud.x -= cloud.speed;
+        cloud.x -= cloud.speed * timeScale;
         if (cloud.x + cloud.size * 2 < 0) {
             cloud.x = canvas.width + cloud.size;
         }
@@ -390,7 +405,9 @@ function drawCloud(x, y, size) {
     ctx.fill();
 }
 
-function drawGround() {
+function drawGround(dt) {
+    const timeScale = dt * gameSpeed;
+
     // Ground
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
@@ -420,7 +437,7 @@ function drawGround() {
         ctx.fill();
     }
 
-    groundOffset = (groundOffset + pipeSpeed) % 40;
+    groundOffset = (groundOffset + pipeSpeed * timeScale) % 40;
 }
 
 function drawScore() {
@@ -463,19 +480,26 @@ function startGame() {
     document.getElementById('gameOverScreen').classList.add('hidden');
 }
 
-function gameLoop() {
+function gameLoop(currentTime) {
+    // Calculate delta time
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    // Delta time multiplier (1.0 = target frame time of ~16.67ms)
+    const dt = deltaTime / TARGET_FRAME_TIME;
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw background
-    drawBackground();
+    drawBackground(dt);
 
     if (gameState === 'playing') {
         // Update bird
-        const hitGround = bird.update();
+        const hitGround = bird.update(dt);
 
         // Update pipes
-        updatePipes();
+        updatePipes(dt);
 
         // Check collisions
         if (hitGround || checkCollision()) {
@@ -490,7 +514,7 @@ function gameLoop() {
     drawPipes();
 
     // Draw ground
-    drawGround();
+    drawGround(dt);
 
     // Draw bird
     bird.draw();
@@ -535,23 +559,30 @@ document.getElementById('startBtn').addEventListener('click', () => {
 });
 
 document.getElementById('restartBtn').addEventListener('click', () => {
-    startGame();
+    // Go back to start screen instead of immediately restarting
+    goToStartScreen();
 });
+
+function goToStartScreen() {
+    gameState = 'start';
+    score = 0;
+    updateScoreDisplay();
+    pipes.length = 0;
+    pipeSpawnTimer = 0;
+    bird.reset();
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    document.getElementById('startScreen').classList.remove('hidden');
+}
 
 // Initialize high score display
 document.getElementById('highScore').textContent = highScore;
 
 // Chonky slider handler
 const chonkySlider = document.getElementById('chonkySlider');
-const chonkyValue = document.getElementById('chonkyValue');
 
 if (chonkySlider) {
     chonkySlider.addEventListener('input', (e) => {
         chonkiness = parseInt(e.target.value);
-        if (chonkyValue) {
-            chonkyValue.textContent = chonkiness;
-        }
-        // Update the display label based on chonkiness level
         updateChonkyLabel();
     });
 }
@@ -573,8 +604,38 @@ function updateChonkyLabel() {
     }
 }
 
-// Initialize label
+// Speed slider handler
+const speedSlider = document.getElementById('speedSlider');
+
+if (speedSlider) {
+    speedSlider.addEventListener('input', (e) => {
+        gameSpeed = parseFloat(e.target.value) / 100; // Convert 50-200 to 0.5-2.0
+        updateSpeedLabel();
+    });
+}
+
+function updateSpeedLabel() {
+    const label = document.getElementById('speedLabel');
+    if (!label) return;
+
+    const speedPercent = Math.round(gameSpeed * 100);
+    if (gameSpeed < 0.7) {
+        label.textContent = `Chill Mode (${speedPercent}%)`;
+    } else if (gameSpeed < 0.9) {
+        label.textContent = `Slow (${speedPercent}%)`;
+    } else if (gameSpeed < 1.1) {
+        label.textContent = `Normal (${speedPercent}%)`;
+    } else if (gameSpeed < 1.5) {
+        label.textContent = `Fast (${speedPercent}%)`;
+    } else {
+        label.textContent = `INSANE (${speedPercent}%)`;
+    }
+}
+
+// Initialize labels
 updateChonkyLabel();
+updateSpeedLabel();
 
 // Start the game loop
-gameLoop();
+lastTime = performance.now();
+requestAnimationFrame(gameLoop);
