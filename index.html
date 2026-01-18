@@ -18,7 +18,18 @@
                 <div class="overlay-content">
                     <div class="chonky-bird-preview">🐦</div>
                     <h2>Ready to Flap?</h2>
-                    <p>This bird is <strong>THICC</strong> and heavy!</p>
+                    <p id="chonkyLabel" class="chonky-label">Chubby Bird</p>
+
+                    <div class="chonky-slider-container">
+                        <label for="chonkySlider" class="slider-title">CHONKY SLIDER</label>
+                        <div class="slider-wrapper">
+                            <span class="slider-label-left">Slim</span>
+                            <input type="range" id="chonkySlider" min="0" max="100" value="50" class="chonky-slider">
+                            <span class="slider-label-right">MEGA</span>
+                        </div>
+                        <p class="slider-hint">Fatter = Heavier + Bigger = Harder to fit!</p>
+                    </div>
+
                     <p class="instructions">Press <kbd>SPACE</kbd> or <kbd>TAP</kbd> to flap</p>
                     <button id="startBtn" class="btn">START GAME</button>
                 </div>
