@@ -9,19 +9,48 @@ let gameState = 'start'; // 'start', 'playing', 'gameOver'
 let score = 0;
 let highScore = localStorage.getItem('flabbyBirdHighScore') || 0;
 
+// Chonkiness level (0-100) - affects size AND weight
+let chonkiness = 50; // Default middle value
+
+// Base physics (normal, not heavy)
+const BASE_GRAVITY = 0.35;
+const BASE_JUMP = -7.5;
+const BASE_WIDTH = 45;
+const BASE_HEIGHT = 38;
+
 // Chonky Bird properties - THIS BIRD IS THICC
 const bird = {
     x: 80,
     y: 300,
-    width: 55,      // Extra wide for the chonk
-    height: 45,     // Tall and round
+    baseWidth: BASE_WIDTH,
+    baseHeight: BASE_HEIGHT,
     velocity: 0,
-    gravity: 0.6,   // HEAVY bird falls faster!
-    jumpStrength: -9, // Less lift because so heavy
+    baseGravity: BASE_GRAVITY,
+    baseJump: BASE_JUMP,
     rotation: 0,
     wobble: 0,      // Wobble animation
     wobbleSpeed: 0,
     flapFrame: 0,   // Animation frame for flapping
+
+    // Dynamic properties based on chonkiness
+    get width() {
+        // Scale from 1x to 2.2x based on chonkiness
+        const scale = 1 + (chonkiness / 100) * 1.2;
+        return this.baseWidth * scale;
+    },
+    get height() {
+        // Scale from 1x to 2x based on chonkiness
+        const scale = 1 + (chonkiness / 100) * 1.0;
+        return this.baseHeight * scale;
+    },
+    get gravity() {
+        // Gravity scales from 0.35 to 0.7 based on chonkiness
+        return this.baseGravity + (chonkiness / 100) * 0.35;
+    },
+    get jumpStrength() {
+        // Jump scales from -7.5 to -10 (stronger jump needed for heavier bird)
+        return this.baseJump - (chonkiness / 100) * 2.5;
+    },
 
     reset() {
         this.y = 300;
@@ -74,70 +103,94 @@ const bird = {
         ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
         ctx.rotate((this.rotation * Math.PI) / 180);
 
-        // Wobble scale effect
-        const wobbleScale = 1 + Math.sin(this.wobble) * 0.05;
+        // Wobble scale effect - more wobble when chonkier
+        const wobbleIntensity = 0.03 + (chonkiness / 100) * 0.07;
+        const wobbleScale = 1 + Math.sin(this.wobble) * wobbleIntensity;
         ctx.scale(wobbleScale, 1 / wobbleScale);
 
-        // Draw the CHONKY bird
+        // Draw the SUPER CHONKY bird
         const w = this.width;
         const h = this.height;
+        const fatness = 1 + (chonkiness / 100) * 0.3; // Extra visual fatness multiplier
 
-        // Body - big round orange blob
+        // Body - SUPER FAT round orange blob
         ctx.fillStyle = '#FF6B35';
         ctx.beginPath();
-        ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, (w / 2) * fatness, (h / 2) * 1.1, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Body outline
+        // Body outline - thicker when fatter
         ctx.strokeStyle = '#CC4411';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3 + (chonkiness / 50);
         ctx.stroke();
 
-        // Belly - lighter orange for that chonky tummy
+        // Fat rolls when very chonky
+        if (chonkiness > 40) {
+            ctx.strokeStyle = 'rgba(204, 68, 17, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, h * 0.15, (w / 2.5) * fatness, h / 8, 0, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+        }
+        if (chonkiness > 70) {
+            ctx.beginPath();
+            ctx.ellipse(0, h * 0.25, (w / 3) * fatness, h / 10, 0, 0.3, Math.PI - 0.3);
+            ctx.stroke();
+        }
+
+        // Belly - EXTRA THICC lighter orange tummy
         ctx.fillStyle = '#FFB088';
         ctx.beginPath();
-        ctx.ellipse(5, 5, w / 3, h / 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(5, 8, (w / 2.5) * fatness, (h / 2.8), 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Wing - flaps when jumping
+        // Wing - small compared to massive body, flaps when jumping
         ctx.fillStyle = '#CC4411';
         const wingY = this.flapFrame > 0 ? -12 : 0;
+        const wingScale = 0.8 + (chonkiness / 100) * 0.4;
         ctx.beginPath();
-        ctx.ellipse(-8, wingY, 12, 8, -0.3, 0, Math.PI * 2);
+        ctx.ellipse(-w * 0.2, wingY, 12 * wingScale, 8 * wingScale, -0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Eye white
+        // Second wing layer for depth
+        ctx.fillStyle = '#B33A0D';
+        ctx.beginPath();
+        ctx.ellipse(-w * 0.25, wingY + 2, 8 * wingScale, 5 * wingScale, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eye white - tiny compared to body
         ctx.fillStyle = 'white';
         ctx.beginPath();
-        ctx.ellipse(12, -8, 12, 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(w * 0.25, -h * 0.2, 12, 10, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Eye pupil - looks determined
+        // Eye pupil - looks stressed from being so fat
         ctx.fillStyle = 'black';
         ctx.beginPath();
-        ctx.ellipse(15, -7, 5, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(w * 0.28, -h * 0.18, 5, 6, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Eye shine
         ctx.fillStyle = 'white';
         ctx.beginPath();
-        ctx.arc(17, -9, 2, 0, Math.PI * 2);
+        ctx.arc(w * 0.3, -h * 0.22, 2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Eyebrow - determined/struggling expression
+        // Eyebrow - more stressed when chonkier
         ctx.strokeStyle = '#8B4513';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(5, -18);
-        ctx.lineTo(20, -15);
+        const browAngle = chonkiness / 100 * 5;
+        ctx.moveTo(w * 0.1, -h * 0.4 - browAngle);
+        ctx.lineTo(w * 0.4, -h * 0.35);
         ctx.stroke();
 
-        // Beak - small compared to body lol
+        // Beak - tiny compared to massive body
         ctx.fillStyle = '#FFD700';
         ctx.beginPath();
-        ctx.moveTo(25, -2);
-        ctx.lineTo(35, 2);
-        ctx.lineTo(25, 6);
+        ctx.moveTo(w * 0.45, -2);
+        ctx.lineTo(w * 0.55, 2);
+        ctx.lineTo(w * 0.45, 6);
         ctx.closePath();
         ctx.fill();
 
@@ -145,25 +198,47 @@ const bird = {
         ctx.strokeStyle = '#CC8800';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(25, 2);
-        ctx.lineTo(33, 2);
+        ctx.moveTo(w * 0.45, 2);
+        ctx.lineTo(w * 0.52, 2);
         ctx.stroke();
 
-        // Blush marks - the bird is working hard!
-        ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+        // Double chin when very chonky
+        if (chonkiness > 50) {
+            ctx.fillStyle = '#FF8855';
+            ctx.beginPath();
+            ctx.ellipse(w * 0.15, h * 0.35, w * 0.2, h * 0.15, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Blush marks - the bird is working EXTRA hard!
+        ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
         ctx.beginPath();
-        ctx.ellipse(18, 5, 6, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(w * 0.35, h * 0.05, 6 + chonkiness / 20, 4 + chonkiness / 30, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Sweat drops when falling fast
-        if (this.velocity > 5) {
+        // Extra blush on other cheek when very fat
+        if (chonkiness > 60) {
+            ctx.beginPath();
+            ctx.ellipse(-w * 0.1, h * 0.1, 5, 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Sweat drops when falling fast - more when heavier
+        if (this.velocity > 4) {
             ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
             ctx.beginPath();
-            ctx.ellipse(-20, -15, 3, 5, 0.5, 0, Math.PI * 2);
+            ctx.ellipse(-w * 0.4, -h * 0.35, 3, 5, 0.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.beginPath();
-            ctx.ellipse(-15, -20, 2, 4, 0.3, 0, Math.PI * 2);
+            ctx.ellipse(-w * 0.3, -h * 0.45, 2, 4, 0.3, 0, Math.PI * 2);
             ctx.fill();
+
+            // Extra sweat when very chonky
+            if (chonkiness > 50) {
+                ctx.beginPath();
+                ctx.ellipse(-w * 0.5, -h * 0.2, 2, 3, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         ctx.restore();
@@ -465,6 +540,41 @@ document.getElementById('restartBtn').addEventListener('click', () => {
 
 // Initialize high score display
 document.getElementById('highScore').textContent = highScore;
+
+// Chonky slider handler
+const chonkySlider = document.getElementById('chonkySlider');
+const chonkyValue = document.getElementById('chonkyValue');
+
+if (chonkySlider) {
+    chonkySlider.addEventListener('input', (e) => {
+        chonkiness = parseInt(e.target.value);
+        if (chonkyValue) {
+            chonkyValue.textContent = chonkiness;
+        }
+        // Update the display label based on chonkiness level
+        updateChonkyLabel();
+    });
+}
+
+function updateChonkyLabel() {
+    const label = document.getElementById('chonkyLabel');
+    if (!label) return;
+
+    if (chonkiness < 20) {
+        label.textContent = 'Slim Bird';
+    } else if (chonkiness < 40) {
+        label.textContent = 'Normal Bird';
+    } else if (chonkiness < 60) {
+        label.textContent = 'Chubby Bird';
+    } else if (chonkiness < 80) {
+        label.textContent = 'THICC Bird';
+    } else {
+        label.textContent = 'MEGA CHONKER';
+    }
+}
+
+// Initialize label
+updateChonkyLabel();
 
 // Start the game loop
 gameLoop();
