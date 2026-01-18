@@ -1,4 +1,4 @@
-// Flabby Bird - The Chonky Edition
+// Flabby Chonk - The Chonky Edition
 // A heavier, fatter twist on the classic!
 
 const canvas = document.getElementById('gameCanvas');
