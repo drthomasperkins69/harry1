@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flabby Bird - The Chonky Edition</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="title">FLABBY BIRD</h1>
+        <p class="subtitle">The Chonky Edition</p>
+
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+            <div id="startScreen" class="overlay">
+                <div class="overlay-content">
+                    <div class="chonky-bird-preview">🐦</div>
+                    <h2>Ready to Flap?</h2>
+                    <p>This bird is <strong>THICC</strong> and heavy!</p>
+                    <p class="instructions">Press <kbd>SPACE</kbd> or <kbd>TAP</kbd> to flap</p>
+                    <button id="startBtn" class="btn">START GAME</button>
+                </div>
+            </div>
+
+            <div id="gameOverScreen" class="overlay hidden">
+                <div class="overlay-content">
+                    <h2>SPLAT!</h2>
+                    <p>The chonker couldn't make it...</p>
+                    <p class="score-display">Score: <span id="finalScore">0</span></p>
+                    <p class="high-score-display">Best: <span id="highScore">0</span></p>
+                    <button id="restartBtn" class="btn">TRY AGAIN</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="score-container">
+            <span id="currentScore">0</span>
+        </div>
+
+        <div class="tips">
+            <p>💡 Tip: This chonky bird falls FAST! Flap often!</p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
